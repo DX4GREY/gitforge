@@ -64,8 +64,9 @@ async function startServer() {
   app.get('/api/auth/github/url', (req, res) => {
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const host = req.headers['x-forwarded-host'] || req.get('host');
-    const baseUrl = 'gitforge.ai.studio' && !'gitforge.ai.studio'.includes('ai.studio')
-      ? 'gitforge.ai.studio'.replace(/\/$/, '')
+    const appUrl = process.env.APP_URL;
+    const baseUrl = appUrl && !appUrl.includes('ai.studio')
+      ? appUrl.replace(/\/$/, '')
       : `${protocol}://${host}`;
     const redirectUri = `${baseUrl}/auth/callback`;
     const url = getGitHubOAuthUrl(redirectUri);
@@ -83,8 +84,9 @@ async function startServer() {
     const code = req.query.code as string;
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const host = req.headers['x-forwarded-host'] || req.get('host');
-    const baseUrl = 'gitforge.ai.studio' && !'gitforge.ai.studio'.includes('ai.studio')
-      ? 'gitforge.ai.studio'.replace(/\/$/, '')
+    const appUrl = process.env.APP_URL;
+    const baseUrl = appUrl && !appUrl.includes('ai.studio')
+      ? appUrl.replace(/\/$/, '')
       : `${protocol}://${host}`;
     const redirectUri = `${baseUrl}/auth/callback`;
 

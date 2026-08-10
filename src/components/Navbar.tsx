@@ -134,11 +134,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate, onOpenC
             </button>
           )}
 
-          {/* Theme Quick Selector */}
+          {/* Theme Quick Selector (Hidden on extra small screens, visible in mobile drawer) */}
           <select
             value={activeTheme.id}
             onChange={(e) => setThemeById(e.target.value)}
-            className="text-xs px-2.5 py-1.5 rounded-lg border font-mono outline-none cursor-pointer"
+            className="hidden sm:block text-xs px-2.5 py-1.5 rounded-lg border font-mono outline-none cursor-pointer"
             style={{
               backgroundColor: activeTheme.surface,
               borderColor: activeTheme.border,
@@ -170,33 +170,71 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate, onOpenC
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div
-          className="lg:hidden border-b px-4 pt-2 pb-4 space-y-1"
+          className="lg:hidden border-b px-4 pt-3 pb-5 space-y-3"
           style={{
             backgroundColor: activeTheme.surface,
             borderColor: activeTheme.border,
           }}
         >
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive = currentPath === link.path;
-            return (
-              <button
-                key={link.path}
-                onClick={() => {
-                  onNavigate(link.path);
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
-                style={{
-                  backgroundColor: isActive ? activeTheme.surfaceSecondary : 'transparent',
-                  color: isActive ? activeTheme.primary : activeTheme.text,
-                }}
-              >
-                <Icon className="w-4 h-4" />
-                {link.label}
-              </button>
-            );
-          })}
+          {/* Mobile Search & Theme Controls */}
+          <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: activeTheme.border }}>
+            <button
+              onClick={() => {
+                onOpenCommandPalette();
+                setMobileMenuOpen(false);
+              }}
+              className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium"
+              style={{
+                backgroundColor: activeTheme.surfaceSecondary,
+                borderColor: activeTheme.border,
+                color: activeTheme.textMuted,
+              }}
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Search Tools...</span>
+            </button>
+
+            <select
+              value={activeTheme.id}
+              onChange={(e) => setThemeById(e.target.value)}
+              className="text-xs px-2 py-2 rounded-lg border font-mono outline-none cursor-pointer"
+              style={{
+                backgroundColor: activeTheme.surfaceSecondary,
+                borderColor: activeTheme.border,
+                color: activeTheme.text,
+              }}
+            >
+              {themes.map((t) => (
+                <option key={t.id} value={t.id}>
+                  🎨 {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            {navLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive = currentPath === link.path;
+              return (
+                <button
+                  key={link.path}
+                  onClick={() => {
+                    onNavigate(link.path);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
+                  style={{
+                    backgroundColor: isActive ? activeTheme.surfaceSecondary : 'transparent',
+                    color: isActive ? activeTheme.primary : activeTheme.text,
+                  }}
+                >
+                  <Icon className="w-4 h-4" />
+                  {link.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </header>

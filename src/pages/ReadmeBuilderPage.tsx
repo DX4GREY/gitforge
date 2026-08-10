@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Copy, Download, Sparkles, Check, RefreshCw, Eye, Code, FileText } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { useTheme } from '../context/ThemeContext';
 import { getGitHubProfile, generateAIReadmeApi } from '../lib/github';
 import { GitHubProfile } from '../types';
@@ -173,11 +176,11 @@ export const ReadmeBuilderPage: React.FC<ReadmeBuilderPageProps> = () => {
 
         {/* Output Column */}
         <div className="lg:col-span-8 space-y-4">
-          <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: activeTheme.surface, borderColor: activeTheme.border }}>
-            <div className="flex items-center gap-1 bg-black/20 p-1 rounded-lg border border-gray-800">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-xl border" style={{ backgroundColor: activeTheme.surface, borderColor: activeTheme.border }}>
+            <div className="flex items-center justify-center gap-1 bg-black/20 p-1 rounded-lg border border-gray-800">
               <button
                 onClick={() => setActiveTab('preview')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition cursor-pointer ${
                   activeTab === 'preview' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -185,7 +188,7 @@ export const ReadmeBuilderPage: React.FC<ReadmeBuilderPageProps> = () => {
               </button>
               <button
                 onClick={() => setActiveTab('code')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition cursor-pointer ${
                   activeTab === 'code' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -193,10 +196,10 @@ export const ReadmeBuilderPage: React.FC<ReadmeBuilderPageProps> = () => {
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-end gap-2">
               <button
                 onClick={copyToClipboard}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition hover:opacity-80"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition hover:opacity-80 cursor-pointer"
                 style={{ backgroundColor: activeTheme.surfaceSecondary, borderColor: activeTheme.border }}
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -204,7 +207,7 @@ export const ReadmeBuilderPage: React.FC<ReadmeBuilderPageProps> = () => {
               </button>
               <button
                 onClick={downloadMarkdown}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition hover:opacity-80"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition hover:opacity-80 cursor-pointer"
                 style={{ backgroundColor: activeTheme.surfaceSecondary, borderColor: activeTheme.border }}
               >
                 <Download className="w-3.5 h-3.5" /> Download .md
@@ -222,10 +225,65 @@ export const ReadmeBuilderPage: React.FC<ReadmeBuilderPageProps> = () => {
                 </p>
               </div>
             ) : activeTab === 'preview' ? (
-              <div className="prose prose-invert max-w-none space-y-4 font-sans text-sm">
-                <div className="whitespace-pre-wrap font-mono text-xs leading-relaxed p-4 rounded-lg bg-black/40 border border-gray-800">
+              <div className="markdown-body prose max-w-none space-y-4 font-sans text-sm leading-relaxed" style={{ color: activeTheme.text }}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                  components={{
+                    img: ({ node, ...props }) => (
+                      <img {...props} className="inline-block max-w-full my-1 rounded" referrerPolicy="no-referrer" />
+                    ),
+                    a: ({ node, ...props }) => (
+                      <a {...props} className="text-blue-500 hover:underline inline-flex items-center gap-1 font-medium" target="_blank" rel="noopener noreferrer" />
+                    ),
+                    h1: ({ node, ...props }) => (
+                      <h1 className="text-2xl font-black border-b pb-2 mb-3 mt-4 flex items-center gap-2" style={{ borderColor: activeTheme.border }} {...props} />
+                    ),
+                    h2: ({ node, ...props }) => (
+                      <h2 className="text-xl font-bold border-b pb-1.5 mb-2 mt-4" style={{ borderColor: activeTheme.border }} {...props} />
+                    ),
+                    h3: ({ node, ...props }) => (
+                      <h3 className="text-lg font-bold mb-2 mt-3" {...props} />
+                    ),
+                    p: ({ node, ...props }) => (
+                      <p className="mb-3 leading-relaxed" {...props} />
+                    ),
+                    ul: ({ node, ...props }) => (
+                      <ul className="list-disc list-inside space-y-1 mb-3" {...props} />
+                    ),
+                    ol: ({ node, ...props }) => (
+                      <ol className="list-decimal list-inside space-y-1 mb-3" {...props} />
+                    ),
+                    blockquote: ({ node, ...props }) => (
+                      <blockquote className="border-l-4 border-blue-500 pl-3 py-1 my-2 opacity-90 italic bg-blue-500/10 rounded-r" {...props} />
+                    ),
+                    code: ({ node, className, children, ...props }: any) => {
+                      const match = /language-(\w+)/.exec(className || '');
+                      const isInline = !match && !String(children).includes('\n');
+                      if (isInline) {
+                        return <code className="bg-black/20 dark:bg-white/10 px-1.5 py-0.5 rounded text-xs font-mono font-semibold" {...props}>{children}</code>;
+                      }
+                      return (
+                        <pre className="p-3 bg-black/40 border border-gray-800 rounded-lg overflow-x-auto text-xs font-mono my-3 leading-relaxed" style={{ color: '#e4e4e7' }} {...props}>
+                          <code>{children}</code>
+                        </pre>
+                      );
+                    },
+                    table: ({ node, ...props }) => (
+                      <div className="overflow-x-auto my-3">
+                        <table className="w-full text-xs border-collapse border border-gray-800" {...props} />
+                      </div>
+                    ),
+                    th: ({ node, ...props }) => (
+                      <th className="border border-gray-800 px-3 py-1.5 bg-black/20 font-bold text-left" {...props} />
+                    ),
+                    td: ({ node, ...props }) => (
+                      <td className="border border-gray-800 px-3 py-1.5" {...props} />
+                    ),
+                  }}
+                >
                   {markdown}
-                </div>
+                </ReactMarkdown>
               </div>
             ) : (
               <textarea

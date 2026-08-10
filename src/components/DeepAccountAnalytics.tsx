@@ -66,19 +66,19 @@ export const DeepAccountAnalytics: React.FC<DeepAccountAnalyticsProps> = ({ onLo
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
           {onLoadAuthenticatedUserIntoCards && (
             <button
               onClick={() => onLoadAuthenticatedUserIntoCards(user.login)}
-              className="px-4 py-2 bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 hover:bg-emerald-800"
+              className="px-4 py-2 bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 hover:bg-emerald-800 transition"
             >
               <Sparkles className="w-4 h-4" />
-              Gunakan Profil Ini di GitForge Cards
+              Use Profile in GitForge Cards
             </button>
           )}
           <button
             onClick={refreshDeepProfile}
-            className="px-3 py-2 border font-bold text-xs flex items-center gap-1.5 hover:bg-black/5"
+            className="px-3 py-2 border font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-black/5 transition"
             style={{ borderColor: activeTheme.border }}
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -138,7 +138,7 @@ export const DeepAccountAnalytics: React.FC<DeepAccountAnalyticsProps> = ({ onLo
         <div className="p-4 border" style={{ borderColor: activeTheme.border }}>
           <div className="font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
             <Mail className="w-4 h-4 text-blue-500" />
-            <span>Terverifikasi Email GitHub ({user.emails.length})</span>
+            <span>Verified GitHub Emails ({user.emails.length})</span>
           </div>
 
           <div className="space-y-2 text-xs">
@@ -172,7 +172,7 @@ export const DeepAccountAnalytics: React.FC<DeepAccountAnalyticsProps> = ({ onLo
         <div className="p-4 border" style={{ borderColor: activeTheme.border }}>
           <div className="font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
             <Lock className="w-4 h-4 text-amber-500" />
-            <span>Repositori Privat Terbaru ({user.privateRepositoriesList?.length || 0})</span>
+            <span>Recent Private Repositories ({user.privateRepositoriesList?.length || 0})</span>
           </div>
 
           <div className="space-y-2 text-xs">

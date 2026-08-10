@@ -39,19 +39,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </p>
 
         {/* Instant GitHub Username Bar */}
-        <form onSubmit={handleSubmit} className="max-w-md mx-auto flex items-center gap-2 p-1.5 rounded-xl border shadow-xl" style={{ backgroundColor: activeTheme.surface, borderColor: activeTheme.border }}>
-          <div className="pl-3 text-sm font-mono font-semibold" style={{ color: activeTheme.textMuted }}>github.com/</div>
-          <input
-            type="text"
-            value={usernameInput}
-            onChange={(e) => setUsernameInput(e.target.value)}
-            placeholder="octocat"
-            className="w-full bg-transparent outline-none text-sm font-semibold font-mono"
-            style={{ color: activeTheme.text }}
-          />
+        <form
+          onSubmit={handleSubmit}
+          className="max-w-md mx-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2 sm:p-1.5 rounded-xl border shadow-xl"
+          style={{ backgroundColor: activeTheme.surface, borderColor: activeTheme.border }}
+        >
+          <div className="flex items-center pl-2 sm:pl-3 text-xs sm:text-sm font-mono font-semibold" style={{ color: activeTheme.textMuted }}>
+            <span>github.com/</span>
+            <input
+              type="text"
+              value={usernameInput}
+              onChange={(e) => setUsernameInput(e.target.value)}
+              placeholder="octocat"
+              className="w-full pl-1 bg-transparent outline-none text-xs sm:text-sm font-semibold font-mono"
+              style={{ color: activeTheme.text }}
+            />
+          </div>
           <button
             type="submit"
-            className="flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-md hover:opacity-90 whitespace-nowrap"
+            className="flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-md hover:opacity-90 whitespace-nowrap cursor-pointer"
             style={{ background: activeTheme.gradient, color: '#ffffff' }}
           >
             Build Identity
@@ -60,13 +66,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </form>
 
         {/* Quick Demo Shortcuts */}
-        <div className="flex items-center justify-center gap-3 text-xs font-mono" style={{ color: activeTheme.textMuted }}>
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs font-mono" style={{ color: activeTheme.textMuted }}>
           <span>Try demo accounts:</span>
           {['octocat', 'torvalds', 'gaearon'].map((demo) => (
             <button
               key={demo}
               onClick={() => onNavigate('/profile/' + demo)}
-              className="underline hover:text-white transition"
+              className="underline hover:opacity-100 transition cursor-pointer"
             >
               @{demo}
             </button>
