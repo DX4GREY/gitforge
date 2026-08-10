@@ -18,6 +18,7 @@ export interface GitHubProfile {
   totalContributions: number;
   currentStreak: number;
   longestStreak: number;
+  contributionCalendar?: Array<{ date: string; count: number }>;
   languages: Array<{ name: string; percentage: number; color: string; count: number }>;
   pinnedRepos: GitHubRepository[];
   topRepos: GitHubRepository[];

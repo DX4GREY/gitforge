@@ -20,6 +20,12 @@ import {
   generateProfileIntelligence,
   generateProjectPersona,
 } from './src/server/ai/gemini';
+import {
+  syncUserToDb,
+  getSyncedUser,
+  getActiveSyncedUser,
+  getAllSyncedUsers,
+} from './src/server/db/database';
 
 // In-memory auth session store for current session token
 let activeAuthSession: {
@@ -27,6 +33,15 @@ let activeAuthSession: {
   user: any;
   method: 'oauth' | 'pat' | 'demo';
 } | null = null;
+
+function getEffectiveUsername(req: express.Request): string {
+  const raw = req.query.username as string;
+  if (raw && raw !== 'octocat' && raw !== 'demo') {
+    return raw;
+  }
+  const active = activeAuthSession?.user?.login || getActiveSyncedUser()?.login;
+  return active || raw || 'octocat';
+}
 
 async function startServer() {
   const app = express();
@@ -64,7 +79,7 @@ async function startServer() {
   app.get('/api/auth/github/url', (req, res) => {
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const host = req.headers['x-forwarded-host'] || req.get('host');
-    const appUrl = process.env.APP_URL;
+    const appUrl = 'gitforge.ai.studio';
     const baseUrl = appUrl && !appUrl.includes('ai.studio')
       ? appUrl.replace(/\/$/, '')
       : `${protocol}://${host}`;
@@ -84,7 +99,7 @@ async function startServer() {
     const code = req.query.code as string;
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const host = req.headers['x-forwarded-host'] || req.get('host');
-    const appUrl = process.env.APP_URL;
+    const appUrl = 'gitforge.ai.studio';
     const baseUrl = appUrl && !appUrl.includes('ai.studio')
       ? appUrl.replace(/\/$/, '')
       : `${protocol}://${host}`;
@@ -97,6 +112,15 @@ async function startServer() {
     try {
       const accessToken = await exchangeCodeForToken(code, redirectUri);
       const deepUser = await fetchAuthenticatedDeepProfile(accessToken);
+
+      let profile;
+      try {
+        profile = await fetchGitHubProfile(deepUser.login);
+      } catch (e) {
+        console.warn('Could not fetch public profile during OAuth callback:', e);
+      }
+
+      syncUserToDb(deepUser, profile, 'oauth');
 
       activeAuthSession = {
         token: accessToken,
@@ -168,6 +192,16 @@ async function startServer() {
       }
 
       const deepUser = await fetchAuthenticatedDeepProfile(token.trim());
+
+      let profile;
+      try {
+        profile = await fetchGitHubProfile(deepUser.login);
+      } catch (e) {
+        console.warn('Could not fetch public profile during token-login:', e);
+      }
+
+      syncUserToDb(deepUser, profile, 'pat');
+
       activeAuthSession = {
         token: token.trim(),
         user: deepUser,
@@ -184,14 +218,78 @@ async function startServer() {
     }
   });
 
+  // Database Sync & User API Endpoints
+  app.get('/api/db/active-user', (req, res) => {
+    const active = activeAuthSession?.user?.login
+      ? getSyncedUser(activeAuthSession.user.login) || getActiveSyncedUser()
+      : getActiveSyncedUser();
+
+    res.json({
+      activeUser: active || null,
+      sessionUser: activeAuthSession?.user || null,
+    });
+  });
+
+  app.get('/api/db/users', (req, res) => {
+    res.json(getAllSyncedUsers());
+  });
+
+  app.post('/api/db/sync', async (req, res) => {
+    try {
+      const username = req.body.username || activeAuthSession?.user?.login;
+      if (!username) {
+        return res.status(400).json({ error: 'No username provided or active session found to sync' });
+      }
+
+      const profile = await fetchGitHubProfile(username);
+      let deepUser = activeAuthSession?.user;
+
+      if (!deepUser || deepUser.login.toLowerCase() !== username.toLowerCase()) {
+        deepUser = {
+          id: Date.now(),
+          login: profile.username,
+          name: profile.name,
+          avatarUrl: profile.avatarUrl,
+          bio: profile.bio,
+          publicRepos: profile.publicRepos,
+          followers: profile.followers,
+          following: profile.following,
+          emails: [],
+        };
+      }
+
+      const synced = syncUserToDb(deepUser, profile, activeAuthSession?.method || 'oauth');
+      res.json({ success: true, syncedUser: synced });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to sync user data to database' });
+    }
+  });
+
   // Get current session status
   app.get('/api/auth/me', (req, res) => {
+    const activeUser = activeAuthSession?.user?.login
+      ? getSyncedUser(activeAuthSession.user.login)
+      : getActiveSyncedUser();
+
     if (activeAuthSession) {
       res.json({
         isAuthenticated: true,
         token: activeAuthSession.token,
         authMethod: activeAuthSession.method,
         user: activeAuthSession.user,
+        dbUser: activeUser,
+      });
+    } else if (activeUser) {
+      res.json({
+        isAuthenticated: true,
+        authMethod: activeUser.authMethod,
+        user: activeUser.deepUserData || {
+          login: activeUser.login,
+          name: activeUser.name,
+          avatarUrl: activeUser.avatarUrl,
+          email: activeUser.email,
+        },
+        dbUser: activeUser,
       });
     } else {
       res.json({
@@ -230,7 +328,11 @@ async function startServer() {
   // Get GitHub Profile Data
   app.get('/api/github/:username', async (req, res) => {
     try {
-      const username = req.params.username;
+      let username = req.params.username;
+      if (username === 'octocat' || username === 'demo') {
+        const active = activeAuthSession?.user?.login || getActiveSyncedUser()?.login;
+        if (active) username = active;
+      }
       const profile = await fetchGitHubProfile(username);
       res.json(profile);
     } catch (err: any) {
@@ -241,7 +343,7 @@ async function startServer() {
   // SVG Card Endpoints
   app.get('/api/card/profile', async (req, res) => {
     try {
-      const username = (req.query.username as string) || 'octocat';
+      const username = getEffectiveUsername(req);
       const theme = (req.query.theme as string) || 'midnight';
       const profile = await fetchGitHubProfile(username);
       const svg = renderProfileCard(profile, theme);
@@ -249,7 +351,8 @@ async function startServer() {
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.send(svg);
     } catch {
-      const fallback = getMockGitHubProfile('octocat');
+      const username = getEffectiveUsername(req);
+      const fallback = getMockGitHubProfile(username);
       const svg = renderProfileCard(fallback, 'midnight');
       res.setHeader('Content-Type', 'image/svg+xml');
       res.send(svg);
@@ -258,7 +361,7 @@ async function startServer() {
 
   app.get('/api/card/stats', async (req, res) => {
     try {
-      const username = (req.query.username as string) || 'octocat';
+      const username = getEffectiveUsername(req);
       const theme = (req.query.theme as string) || 'midnight';
       const profile = await fetchGitHubProfile(username);
       const svg = renderStatsCard(profile, theme);
@@ -266,7 +369,8 @@ async function startServer() {
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.send(svg);
     } catch {
-      const fallback = getMockGitHubProfile('octocat');
+      const username = getEffectiveUsername(req);
+      const fallback = getMockGitHubProfile(username);
       const svg = renderStatsCard(fallback, 'midnight');
       res.setHeader('Content-Type', 'image/svg+xml');
       res.send(svg);
@@ -275,7 +379,7 @@ async function startServer() {
 
   app.get('/api/card/languages', async (req, res) => {
     try {
-      const username = (req.query.username as string) || 'octocat';
+      const username = getEffectiveUsername(req);
       const theme = (req.query.theme as string) || 'midnight';
       const profile = await fetchGitHubProfile(username);
       const svg = renderLanguagesCard(profile, theme);
@@ -283,7 +387,8 @@ async function startServer() {
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.send(svg);
     } catch {
-      const fallback = getMockGitHubProfile('octocat');
+      const username = getEffectiveUsername(req);
+      const fallback = getMockGitHubProfile(username);
       const svg = renderLanguagesCard(fallback, 'midnight');
       res.setHeader('Content-Type', 'image/svg+xml');
       res.send(svg);
@@ -292,7 +397,7 @@ async function startServer() {
 
   app.get('/api/card/streak', async (req, res) => {
     try {
-      const username = (req.query.username as string) || 'octocat';
+      const username = getEffectiveUsername(req);
       const theme = (req.query.theme as string) || 'midnight';
       const profile = await fetchGitHubProfile(username);
       const svg = renderStreakCard(profile, theme);
@@ -300,7 +405,8 @@ async function startServer() {
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.send(svg);
     } catch {
-      const fallback = getMockGitHubProfile('octocat');
+      const username = getEffectiveUsername(req);
+      const fallback = getMockGitHubProfile(username);
       const svg = renderStreakCard(fallback, 'midnight');
       res.setHeader('Content-Type', 'image/svg+xml');
       res.send(svg);
@@ -309,7 +415,7 @@ async function startServer() {
 
   app.get('/api/card/contributions', async (req, res) => {
     try {
-      const username = (req.query.username as string) || 'octocat';
+      const username = getEffectiveUsername(req);
       const theme = (req.query.theme as string) || 'midnight';
       const profile = await fetchGitHubProfile(username);
       const svg = renderContributionsCard(profile, theme);
@@ -317,7 +423,8 @@ async function startServer() {
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.send(svg);
     } catch {
-      const fallback = getMockGitHubProfile('octocat');
+      const username = getEffectiveUsername(req);
+      const fallback = getMockGitHubProfile(username);
       const svg = renderContributionsCard(fallback, 'midnight');
       res.setHeader('Content-Type', 'image/svg+xml');
       res.send(svg);
@@ -326,7 +433,11 @@ async function startServer() {
 
   app.get('/api/card/repository', async (req, res) => {
     const repo = (req.query.repo as string) || 'gitforge-core';
-    const owner = (req.query.owner as string) || 'octocat';
+    let owner = (req.query.owner as string) || 'octocat';
+    if (owner === 'octocat' || owner === 'demo') {
+      const active = activeAuthSession?.user?.login || getActiveSyncedUser()?.login;
+      if (active) owner = active;
+    }
     const theme = (req.query.theme as string) || 'midnight';
     const svg = renderRepositoryCard(repo, owner, theme);
     res.setHeader('Content-Type', 'image/svg+xml');
@@ -336,7 +447,11 @@ async function startServer() {
   // Hosted profile payload route
   app.get('/api/profile/:username', async (req, res) => {
     try {
-      const username = req.params.username;
+      let username = req.params.username;
+      if (username === 'octocat' || username === 'demo') {
+        const active = activeAuthSession?.user?.login || getActiveSyncedUser()?.login;
+        if (active) username = active;
+      }
       const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
       const host = req.headers['x-forwarded-host'] || req.get('host') || 'gitforge.ai.studio';
       const origin = `${protocol}://${host}`;
@@ -361,7 +476,13 @@ async function startServer() {
       const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
       const host = req.headers['x-forwarded-host'] || req.get('host') || 'gitforge.ai.studio';
       const origin = `${protocol}://${host}`;
-      const profile = await fetchGitHubProfile(username || 'octocat');
+      
+      let finalUsername = username;
+      if (!finalUsername || finalUsername === 'octocat' || finalUsername === 'demo') {
+        finalUsername = activeAuthSession?.user?.login || getActiveSyncedUser()?.login || 'octocat';
+      }
+
+      const profile = await fetchGitHubProfile(finalUsername);
       const markdown = await generateAIReadme(profile, style, sections, origin);
       res.json({ markdown });
     } catch (err: any) {
@@ -372,7 +493,12 @@ async function startServer() {
   app.post('/api/ai/intelligence', async (req, res) => {
     try {
       const { username } = req.body;
-      const profile = await fetchGitHubProfile(username || 'octocat');
+      let finalUsername = username;
+      if (!finalUsername || finalUsername === 'octocat' || finalUsername === 'demo') {
+        finalUsername = activeAuthSession?.user?.login || getActiveSyncedUser()?.login || 'octocat';
+      }
+
+      const profile = await fetchGitHubProfile(finalUsername);
       const intelligence = await generateProfileIntelligence(profile);
       res.json(intelligence);
     } catch (err: any) {

@@ -3,6 +3,7 @@ import { Share2, Star, GitFork, Copy, Check, ExternalLink, ShieldCheck } from 'l
 import { useTheme } from '../context/ThemeContext';
 import { getGitHubProfile } from '../lib/github';
 import { GitHubProfile } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface HostedProfilePageProps {
   usernameParam?: string;
@@ -10,17 +11,22 @@ interface HostedProfilePageProps {
 
 export const HostedProfilePage: React.FC<HostedProfilePageProps> = ({ usernameParam = 'octocat' }) => {
   const { activeTheme } = useTheme();
+  const { authState } = useAuth();
   const [profile, setProfile] = useState<GitHubProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    getGitHubProfile(usernameParam)
+    let targetUser = usernameParam;
+    if ((targetUser === 'octocat' || targetUser === 'demo') && authState.user?.login) {
+      targetUser = authState.user.login;
+    }
+    getGitHubProfile(targetUser)
       .then((data) => setProfile(data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [usernameParam]);
+  }, [usernameParam, authState.user?.login]);
 
   const copyProfileLink = () => {
     navigator.clipboard.writeText(window.location.href);

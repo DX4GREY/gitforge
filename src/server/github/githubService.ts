@@ -115,7 +115,9 @@ export async function fetchGitHubProfile(username: string): Promise<GitHubProfil
     const topRepos = [...repos].sort((a, b) => b.stars - a.stars).slice(0, 6);
     const pinnedRepos = topRepos.slice(0, 4);
 
-    // Estimate total contributions based on public metrics & streak algorithms
+    // Fetch real contributions and calculate valid commit streak
+    const contribStats = await fetchGitHubContributions(cleanUsername);
+
     const estimatedContribs = Math.max(
       userData.public_repos * 12 + totalStars * 3 + userData.followers * 2,
       142
@@ -138,9 +140,10 @@ export async function fetchGitHubProfile(username: string): Promise<GitHubProfil
       updatedAt: userData.updated_at,
       starsCount: totalStars,
       forksCount: totalForks,
-      totalContributions: estimatedContribs,
-      currentStreak: Math.min(Math.floor(estimatedContribs / 8), 42),
-      longestStreak: Math.min(Math.floor(estimatedContribs / 4), 89),
+      totalContributions: contribStats.totalContributions || estimatedContribs,
+      currentStreak: contribStats.currentStreak,
+      longestStreak: contribStats.longestStreak,
+      contributionCalendar: contribStats.contributionDays,
       languages,
       pinnedRepos,
       topRepos,
@@ -283,4 +286,187 @@ export function getMockGitHubProfile(username: string): GitHubProfile {
       { type: 'CreateEvent', repo: `${username}/quantum-ui-kit`, date: new Date().toISOString() },
     ],
   };
+}
+
+export interface ContributionStats {
+  totalContributions: number;
+  currentStreak: number;
+  longestStreak: number;
+  contributionDays: { date: string; count: number }[];
+}
+
+async function fetchFallbackStreakFromEvents(username: string): Promise<ContributionStats> {
+  try {
+    const headers: Record<string, string> = {
+      'User-Agent': 'GitForge-App',
+      'Accept': 'application/vnd.github.v3+json',
+    };
+    if (process.env.GITHUB_TOKEN) {
+      headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
+    }
+
+    const res = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/events?per_page=100`, { headers });
+    if (!res.ok) {
+      return { totalContributions: 0, currentStreak: 0, longestStreak: 0, contributionDays: [] };
+    }
+
+    const events = await res.json();
+    if (!Array.isArray(events) || events.length === 0) {
+      return { totalContributions: 0, currentStreak: 0, longestStreak: 0, contributionDays: [] };
+    }
+
+    const dateCounts = new Map<string, number>();
+    for (const ev of events) {
+      if (ev.created_at) {
+        const d = ev.created_at.split('T')[0];
+        dateCounts.set(d, (dateCounts.get(d) || 0) + 1);
+      }
+    }
+
+    const sortedDates = Array.from(dateCounts.keys()).sort();
+    let totalContributions = 0;
+    let longestStreak = 0;
+    let tempStreak = 0;
+
+    for (const d of sortedDates) {
+      const c = dateCounts.get(d) || 0;
+      totalContributions += c;
+      if (c > 0) {
+        tempStreak++;
+        if (tempStreak > longestStreak) longestStreak = tempStreak;
+      } else {
+        tempStreak = 0;
+      }
+    }
+
+    let currentStreak = 0;
+    let checkIndex = sortedDates.length - 1;
+    if (checkIndex >= 0) {
+      const lastDate = sortedDates[checkIndex];
+      const lastCount = dateCounts.get(lastDate) || 0;
+      if (lastCount === 0 && checkIndex > 0) {
+        checkIndex--;
+      }
+      while (checkIndex >= 0) {
+        const d = sortedDates[checkIndex];
+        const c = dateCounts.get(d) || 0;
+        if (c > 0) {
+          currentStreak++;
+          checkIndex--;
+        } else {
+          break;
+        }
+      }
+    }
+
+    return {
+      totalContributions,
+      currentStreak,
+      longestStreak,
+      contributionDays: sortedDates.map(date => ({ date, count: dateCounts.get(date) || 0 })),
+    };
+  } catch {
+    return { totalContributions: 0, currentStreak: 0, longestStreak: 0, contributionDays: [] };
+  }
+}
+
+export async function fetchGitHubContributions(username: string): Promise<ContributionStats> {
+  const cleanUsername = username.trim().toLowerCase();
+  try {
+    const res = await fetch(`https://github.com/users/${encodeURIComponent(cleanUsername)}/contributions`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml',
+      },
+    });
+
+    if (!res.ok) {
+      return await fetchFallbackStreakFromEvents(cleanUsername);
+    }
+
+    const html = await res.text();
+
+    const idToDate = new Map<string, string>();
+    const dayMatches = [...html.matchAll(/id=\"(contribution-day-component-[^\"]+)\"[^>]*data-date=\"(\d{4}-\d{2}-\d{2})\"/g)];
+    for (const m of dayMatches) { idToDate.set(m[1], m[2]); }
+    const dayMatches2 = [...html.matchAll(/data-date=\"(\d{4}-\d{2}-\d{2})\"[^>]*id=\"(contribution-day-component-[^\"]+)\"/g)];
+    for (const m of dayMatches2) { idToDate.set(m[2], m[1]); }
+
+    const dateCounts = new Map<string, number>();
+
+    const tooltips = [...html.matchAll(/for=\"(contribution-day-component-[^\"]+)\"[^>]*>([^<]+)<\/tool-tip>/g)];
+    for (const t of tooltips) {
+      const id = t[1];
+      const text = t[2];
+      const date = idToDate.get(id);
+      if (!date) continue;
+      let count = 0;
+      if (!text.includes('No contribution')) {
+        const m = text.match(/^([\d,]+)\s+contribution/i);
+        if (m) count = parseInt(m[1].replace(/,/g, ''), 10);
+      }
+      dateCounts.set(date, count);
+    }
+
+    if (dateCounts.size === 0) {
+      const rectMatches = [...html.matchAll(/data-date=\"(\d{4}-\d{2}-\d{2})\"[^>]*data-count=\"(\d+)\"/g)];
+      for (const m of rectMatches) { dateCounts.set(m[1], parseInt(m[2], 10)); }
+      const rectMatches2 = [...html.matchAll(/data-count=\"(\d+)\"[^>]*data-date=\"(\d{4}-\d{2}-\d{2})\"/g)];
+      for (const m of rectMatches2) { dateCounts.set(m[2], parseInt(m[1], 10)); }
+    }
+
+    if (dateCounts.size === 0) {
+      return await fetchFallbackStreakFromEvents(cleanUsername);
+    }
+
+    const sortedDates = Array.from(dateCounts.keys()).sort();
+    let totalContributions = 0;
+    let longestStreak = 0;
+    let tempStreak = 0;
+
+    for (const d of sortedDates) {
+      const c = dateCounts.get(d) || 0;
+      totalContributions += c;
+      if (c > 0) {
+        tempStreak++;
+        if (tempStreak > longestStreak) longestStreak = tempStreak;
+      } else {
+        tempStreak = 0;
+      }
+    }
+
+    let currentStreak = 0;
+    let checkIndex = sortedDates.length - 1;
+    if (checkIndex >= 0) {
+      const lastDate = sortedDates[checkIndex];
+      const lastCount = dateCounts.get(lastDate) || 0;
+      if (lastCount === 0 && checkIndex > 0) {
+        checkIndex--;
+      }
+      while (checkIndex >= 0) {
+        const d = sortedDates[checkIndex];
+        const c = dateCounts.get(d) || 0;
+        if (c > 0) {
+          currentStreak++;
+          checkIndex--;
+        } else {
+          break;
+        }
+      }
+    }
+
+    const contributionDays = sortedDates.map(date => ({
+      date,
+      count: dateCounts.get(date) || 0,
+    }));
+
+    return {
+      totalContributions,
+      currentStreak,
+      longestStreak,
+      contributionDays,
+    };
+  } catch {
+    return await fetchFallbackStreakFromEvents(cleanUsername);
+  }
 }

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, ArrowRight, Code, ShieldCheck, Cpu, Terminal, Palette, FileText, CheckCircle2, Layers } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 interface LandingPageProps {
   onNavigate: (path: string, params?: { username?: string }) => void;
@@ -8,7 +9,14 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   const { activeTheme } = useTheme();
-  const [usernameInput, setUsernameInput] = useState('octocat');
+  const { authState } = useAuth();
+  const [usernameInput, setUsernameInput] = useState(authState.user?.login || 'octocat');
+
+  useEffect(() => {
+    if (authState.user?.login) {
+      setUsernameInput(authState.user.login);
+    }
+  }, [authState.user?.login]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

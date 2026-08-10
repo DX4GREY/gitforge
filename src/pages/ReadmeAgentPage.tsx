@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, CheckCircle2, RefreshCw, ArrowRight, Bot, Copy, Download } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { generateAIReadmeApi } from '../lib/github';
+import { useAuth } from '../context/AuthContext';
 
 export const ReadmeAgentPage: React.FC = () => {
   const { activeTheme } = useTheme();
-  const [username, setUsername] = useState('octocat');
+  const { authState } = useAuth();
+  const [username, setUsername] = useState(authState.user?.login || 'octocat');
+
+  useEffect(() => {
+    if (authState.user?.login) {
+      setUsername(authState.user.login);
+    }
+  }, [authState.user?.login]);
   const [currentStep, setCurrentStep] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [finalOutput, setFinalOutput] = useState('');

@@ -4,12 +4,20 @@ import confetti from 'canvas-confetti';
 import { useTheme } from '../context/ThemeContext';
 import { getGitHubProfile } from '../lib/github';
 import { GitHubProfile } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 export const WrappedPage: React.FC = () => {
   const { activeTheme } = useTheme();
-  const [username, setUsername] = useState('octocat');
+  const { authState } = useAuth();
+  const [username, setUsername] = useState(authState.user?.login || 'octocat');
   const [slide, setSlide] = useState(0);
   const [profile, setProfile] = useState<GitHubProfile | null>(null);
+
+  useEffect(() => {
+    if (authState.user?.login) {
+      setUsername(authState.user.login);
+    }
+  }, [authState.user?.login]);
 
   useEffect(() => {
     getGitHubProfile(username).then((data) => setProfile(data)).catch(() => {});

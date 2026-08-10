@@ -202,22 +202,26 @@ export function renderContributionsCard(profile: GitHubProfile, themeInput?: str
   const width = 500;
   const height = 180;
 
-  // Generate a mock 7x20 activity grid matrix
   const cols = 22;
   const rows = 7;
   const tileSize = 14;
   const gap = 4;
 
+  const cal = profile.contributionCalendar || [];
+  const recentDays = cal.length >= cols * rows ? cal.slice(-(cols * rows)) : cal;
+
   let matrixSvg = '';
   for (let c = 0; c < cols; c++) {
     for (let r = 0; r < rows; r++) {
-      const rand = (c * 7 + r * 13 + profile.username.length) % 5;
+      const idx = c * rows + r;
+      const dayData = recentDays[idx];
+      const count = dayData ? dayData.count : 0;
+
       let opacity = '0.15';
       let fill = theme.textMuted;
-      if (rand === 1) { opacity = '0.4'; fill = theme.primary; }
-      if (rand === 2) { opacity = '0.7'; fill = theme.primary; }
-      if (rand === 3) { opacity = '1.0'; fill = theme.primary; }
-      if (rand === 4) { opacity = '1.0'; fill = theme.accent; }
+      if (count > 0 && count <= 2) { opacity = '0.4'; fill = theme.primary; }
+      else if (count > 2 && count <= 5) { opacity = '0.7'; fill = theme.primary; }
+      else if (count > 5) { opacity = '1.0'; fill = theme.accent; }
 
       const x = c * (tileSize + gap);
       const y = r * (tileSize + gap);
@@ -233,7 +237,7 @@ export function renderContributionsCard(profile: GitHubProfile, themeInput?: str
     </style>
     <rect class="card-bg" width="${width - 3}" height="${height - 3}" x="1.5" y="1.5"/>
     <text x="25" y="32" class="header-title">Contribution Matrix Graph</text>
-    <text x="${width - 150}" y="32" class="sub-title" text-anchor="end">${profile.totalContributions} Contributions</text>
+    <text x="${width - 25}" y="32" class="sub-title" text-anchor="end">${profile.totalContributions} Contributions</text>
 
     <g transform="translate(25, 48)">
       ${matrixSvg}

@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldAlert, Sparkles, RefreshCw, CheckCircle2, TrendingUp, Cpu } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { fetchProfileIntelligenceApi } from '../lib/github';
 import { ProfileIntelligenceResult } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 export const IntelligencePage: React.FC = () => {
   const { activeTheme } = useTheme();
-  const [username, setUsername] = useState('octocat');
+  const { authState } = useAuth();
+  const [username, setUsername] = useState(authState.user?.login || 'octocat');
   const [loading, setLoading] = useState(false);
   const [intelligence, setIntelligence] = useState<ProfileIntelligenceResult | null>(null);
+
+  useEffect(() => {
+    if (authState.user?.login) {
+      setUsername(authState.user.login);
+    }
+  }, [authState.user?.login]);
 
   const handleAnalyze = async () => {
     if (!username.trim()) return;

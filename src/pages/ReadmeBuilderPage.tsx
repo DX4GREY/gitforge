@@ -6,6 +6,7 @@ import rehypeRaw from 'rehype-raw';
 import { useTheme } from '../context/ThemeContext';
 import { getGitHubProfile, generateAIReadmeApi } from '../lib/github';
 import { GitHubProfile } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface ReadmeBuilderPageProps {
   onNavigate: (path: string) => void;
@@ -13,7 +14,8 @@ interface ReadmeBuilderPageProps {
 
 export const ReadmeBuilderPage: React.FC<ReadmeBuilderPageProps> = () => {
   const { activeTheme } = useTheme();
-  const [username, setUsername] = useState('octocat');
+  const { authState } = useAuth();
+  const [username, setUsername] = useState(authState.user?.login || 'octocat');
   const [style, setStyle] = useState('Technical');
   const [selectedSections, setSelectedSections] = useState<string[]>([
     'Header',
@@ -58,8 +60,14 @@ export const ReadmeBuilderPage: React.FC<ReadmeBuilderPageProps> = () => {
   };
 
   useEffect(() => {
+    if (authState.user?.login) {
+      setUsername(authState.user.login);
+    }
+  }, [authState.user?.login]);
+
+  useEffect(() => {
     handleGenerate();
-  }, []);
+  }, [username]);
 
   const toggleSection = (sec: string) => {
     if (selectedSections.includes(sec)) {

@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Code, Copy, Check, ExternalLink, Palette, RefreshCw } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 export const SvgCardsPage: React.FC = () => {
   const { activeTheme, themes } = useTheme();
-  const [username, setUsername] = useState('octocat');
+  const { authState } = useAuth();
+  const [username, setUsername] = useState(authState.user?.login || 'octocat');
+
+  useEffect(() => {
+    if (authState.user?.login) {
+      setUsername(authState.user.login);
+    }
+  }, [authState.user?.login]);
   const [cardType, setCardType] = useState<'profile' | 'stats' | 'languages' | 'streak' | 'contributions' | 'repository'>('profile');
   const [cardTheme, setCardTheme] = useState('midnight');
   const [copiedType, setCopiedType] = useState<'md' | 'html' | 'url' | null>(null);

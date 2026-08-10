@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { getGitHubProfile } from '../lib/github';
 import { GitHubProfile } from '../types';
 import { DeepAccountAnalytics } from '../components/DeepAccountAnalytics';
+import { useAuth } from '../context/AuthContext';
 
 interface DashboardPageProps {
   onNavigate: (path: string, params?: { username?: string }) => void;
@@ -11,7 +12,8 @@ interface DashboardPageProps {
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const { activeTheme } = useTheme();
-  const [username, setUsername] = useState('octocat');
+  const { authState } = useAuth();
+  const [username, setUsername] = useState(authState.user?.login || 'octocat');
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<GitHubProfile | null>(null);
 
@@ -28,8 +30,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   };
 
   useEffect(() => {
-    fetchUser(username);
-  }, []);
+    if (authState.user?.login) {
+      setUsername(authState.user.login);
+      fetchUser(authState.user.login);
+    } else {
+      fetchUser(username);
+    }
+  }, [authState.user?.login]);
 
   const quickTools = [
     { label: 'README Builder', path: '/readme', icon: FileText, desc: 'Visual markdown profile generator' },

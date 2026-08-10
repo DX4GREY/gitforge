@@ -4,10 +4,12 @@ import JSZip from 'jszip';
 import { useTheme } from '../context/ThemeContext';
 import { getGitHubProfile } from '../lib/github';
 import { GitHubProfile } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 export const PortfolioBuilderPage: React.FC = () => {
   const { activeTheme } = useTheme();
-  const [username, setUsername] = useState('octocat');
+  const { authState } = useAuth();
+  const [username, setUsername] = useState(authState.user?.login || 'octocat');
   const [profile, setProfile] = useState<GitHubProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -25,8 +27,14 @@ export const PortfolioBuilderPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (authState.user?.login) {
+      setUsername(authState.user.login);
+    }
+  }, [authState.user?.login]);
+
+  useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [username]);
 
   const downloadZipPortfolio = async () => {
     if (!profile) return;
