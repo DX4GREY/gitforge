@@ -1,0 +1,6 @@
+{
+  "name": "GitForge",
+  "description": "Developer Identity & GitHub Profile Customization Platform with README generator, SVG cards, portfolio builder, and profile intelligence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

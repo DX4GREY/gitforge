@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "GitForge — Developer Identity & Profile Engine",
+  "version": "1.0.0",
+  "description": "Instant GitHub profile README generator, SVG cards, portfolio builder, and developer intelligence.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["https://github.com/*", "https://*.run.app/*", "https://*.dev/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

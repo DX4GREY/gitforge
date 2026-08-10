@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #E4E3E0;
+  --ink: #141414;
+  --line: #141414;
+  --f-mono: 'Courier New', Courier, monospace;
+  --f-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-sans);
+}
+
+.cobalt-bg { background-color: var(--bg); }
+.cobalt-ink { color: var(--ink); }
+.cobalt-border { border-color: var(--line); }
+
+.f-mono { font-family: var(--f-mono); }
+.f-sans { font-family: var(--f-sans); }
+
+.col-header {
+  font-family: 'Georgia', serif;
+  font-style: italic;
+  font-size: 11px;
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.data-row {
+  border-bottom: 1px solid var(--line);
+  transition: background 0.1s ease, color 0.1s ease;
+  cursor: default;
+}
+
+.data-row:hover {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.vertical-divider {
+  border-right: 1px solid var(--line);
+}
+
+.horizontal-divider {
+  border-bottom: 1px solid var(--line);
+}
+
+.high-density-box {
+  border: 1px solid var(--line);
+  background-color: #D9D8D5;
+  border-radius: 0px;
+}
