@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, Terminal, Palette, Search, Menu, X, Layout, FileText, UserCheck, Code, Layers, ShieldAlert, Shield, LogIn } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import gitForgeLogo from '../assets/images/gitforge_logo_1786376061679.jpg';
+import { GitForgeLogo } from './GitForgeLogo';
 
 interface NavbarProps {
   currentPath: string;
@@ -41,13 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate, onOpenC
           onClick={() => onNavigate('/')}
           className="flex items-center gap-2 font-black text-xl tracking-tight focus:outline-none cursor-pointer"
         >
-          <img
-            src={gitForgeLogo}
-            alt="GitForge Production Logo"
-            className="w-8 h-8 rounded-lg border object-cover shadow-lg"
-            style={{ borderColor: activeTheme.border }}
-            referrerPolicy="no-referrer"
-          />
+          <GitForgeLogo size={32} />
           <span style={{ color: activeTheme.text }}>
             Git<span style={{ color: activeTheme.primary }}>Forge</span>
           </span>
