@@ -345,8 +345,11 @@ async function startServer() {
     try {
       const username = getEffectiveUsername(req);
       const theme = (req.query.theme as string) || 'midnight';
+      const animate = (req.query.animate as string) || 'none';
+      const layout = (req.query.layout as string) || 'classic';
+      const githubLogo = req.query.github_logo !== 'false';
       const profile = await fetchGitHubProfile(username);
-      const svg = renderProfileCard(profile, theme);
+      const svg = renderProfileCard(profile, theme, animate, layout, githubLogo);
       res.setHeader('Content-Type', 'image/svg+xml');
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.send(svg);
@@ -363,8 +366,11 @@ async function startServer() {
     try {
       const username = getEffectiveUsername(req);
       const theme = (req.query.theme as string) || 'midnight';
+      const animate = (req.query.animate as string) || 'none';
+      const layout = (req.query.layout as string) || 'classic';
+      const githubLogo = req.query.github_logo !== 'false';
       const profile = await fetchGitHubProfile(username);
-      const svg = renderStatsCard(profile, theme);
+      const svg = renderStatsCard(profile, theme, animate, layout, githubLogo);
       res.setHeader('Content-Type', 'image/svg+xml');
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.send(svg);
@@ -381,8 +387,11 @@ async function startServer() {
     try {
       const username = getEffectiveUsername(req);
       const theme = (req.query.theme as string) || 'midnight';
+      const animate = (req.query.animate as string) || 'none';
+      const layout = (req.query.layout as string) || 'classic';
+      const githubLogo = req.query.github_logo !== 'false';
       const profile = await fetchGitHubProfile(username);
-      const svg = renderLanguagesCard(profile, theme);
+      const svg = renderLanguagesCard(profile, theme, animate, layout, githubLogo);
       res.setHeader('Content-Type', 'image/svg+xml');
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.send(svg);
@@ -399,8 +408,11 @@ async function startServer() {
     try {
       const username = getEffectiveUsername(req);
       const theme = (req.query.theme as string) || 'midnight';
+      const animate = (req.query.animate as string) || 'none';
+      const layout = (req.query.layout as string) || 'classic';
+      const githubLogo = req.query.github_logo !== 'false';
       const profile = await fetchGitHubProfile(username);
-      const svg = renderStreakCard(profile, theme);
+      const svg = renderStreakCard(profile, theme, animate, layout, githubLogo);
       res.setHeader('Content-Type', 'image/svg+xml');
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.send(svg);
@@ -417,8 +429,11 @@ async function startServer() {
     try {
       const username = getEffectiveUsername(req);
       const theme = (req.query.theme as string) || 'midnight';
+      const animate = (req.query.animate as string) || 'none';
+      const layout = (req.query.layout as string) || 'classic';
+      const githubLogo = req.query.github_logo !== 'false';
       const profile = await fetchGitHubProfile(username);
-      const svg = renderContributionsCard(profile, theme);
+      const svg = renderContributionsCard(profile, theme, animate, layout, githubLogo);
       res.setHeader('Content-Type', 'image/svg+xml');
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.send(svg);
@@ -439,7 +454,10 @@ async function startServer() {
       if (active) owner = active;
     }
     const theme = (req.query.theme as string) || 'midnight';
-    const svg = renderRepositoryCard(repo, owner, theme);
+    const animate = (req.query.animate as string) || 'none';
+    const layout = (req.query.layout as string) || 'classic';
+    const githubLogo = req.query.github_logo !== 'false';
+    const svg = renderRepositoryCard(repo, owner, theme, animate, layout, githubLogo);
     res.setHeader('Content-Type', 'image/svg+xml');
     res.send(svg);
   });
@@ -472,7 +490,7 @@ async function startServer() {
   // AI Endpoints
   app.post('/api/ai/readme', async (req, res) => {
     try {
-      const { username, style = 'Technical', sections = ['Header', 'About', 'Tech Stack', 'Featured Projects', 'GitHub Stats'] } = req.body;
+      const { username, style = 'Technical', sections = ['Header', 'About', 'Tech Stack', 'Featured Projects', 'GitHub Stats'], theme = 'midnight' } = req.body;
       const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
       const host = req.headers['x-forwarded-host'] || req.get('host') || 'gitforge.ai.studio';
       const origin = `${protocol}://${host}`;
@@ -483,7 +501,7 @@ async function startServer() {
       }
 
       const profile = await fetchGitHubProfile(finalUsername);
-      const markdown = await generateAIReadme(profile, style, sections, origin);
+      const markdown = await generateAIReadme(profile, style, sections, origin, theme);
       res.json({ markdown });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to generate README' });

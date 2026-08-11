@@ -441,6 +441,27 @@ export const ORIGINAL_THEMES: Theme[] = [
     glow: 'rgba(148, 163, 184, 0.2)',
     radius: '0.5rem',
     font: 'sans-serif'
+  },
+  {
+    id: 'gitskins',
+    name: 'GitSkins Neon Blue',
+    description: 'Sleek futuristic cyber blueprint with glowing deep blue-violet gradients, neon cyber accents, and dual rounded framing.',
+    bg: '#040a12',
+    surface: '#050F1A',
+    surfaceSecondary: '#0F1E2E',
+    border: '#1A3654',
+    text: '#FFFFFF',
+    textMuted: '#7093B3',
+    primary: '#0D8FFF',
+    secondary: '#00FFFF',
+    accent: '#38bdf8',
+    success: '#10b981',
+    warning: '#f59e0b',
+    danger: '#ef4444',
+    gradient: 'linear-gradient(135deg, #050F1A 0%, #0F1E2E 100%)',
+    glow: 'rgba(13, 143, 255, 0.4)',
+    radius: '24px',
+    font: 'sans-serif'
   }
 ];
 

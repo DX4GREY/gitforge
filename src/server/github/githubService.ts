@@ -8,6 +8,28 @@ interface CacheItem {
 const cache = new Map<string, CacheItem>();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
+async function fetchImageAsBase64(url: string): Promise<string> {
+  if (!url) return '';
+  if (url.startsWith('data:')) return url; // Already base64 or data URL
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'GitForge-App',
+      }
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch image: ${res.statusText}`);
+    }
+    const contentType = res.headers.get('content-type') || 'image/png';
+    const buffer = await res.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+    return `data:${contentType};base64,${base64}`;
+  } catch (err) {
+    console.warn(`Failed to convert image to base64: ${url}`, err);
+    return url; // fallback to original URL
+  }
+}
+
 export async function fetchGitHubProfile(username: string): Promise<GitHubProfile> {
   const cleanUsername = username.trim().toLowerCase();
   if (!cleanUsername) {
@@ -157,13 +179,21 @@ export async function fetchGitHubProfile(username: string): Promise<GitHubProfil
       })),
     };
 
+    if (profile.avatarUrl) {
+      profile.avatarUrl = await fetchImageAsBase64(profile.avatarUrl);
+    }
+
     cache.set(cleanUsername, { data: profile, timestamp: Date.now() });
     return profile;
   } catch (err: any) {
     if (err.message && err.message.includes('not found')) {
       throw err;
     }
-    return getMockGitHubProfile(cleanUsername);
+    const mockProfile = getMockGitHubProfile(cleanUsername);
+    if (mockProfile.avatarUrl) {
+      mockProfile.avatarUrl = await fetchImageAsBase64(mockProfile.avatarUrl);
+    }
+    return mockProfile;
   }
 }
 

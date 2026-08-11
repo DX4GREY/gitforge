@@ -21,16 +21,18 @@ export async function generateAIReadme(
   profile: GitHubProfile,
   style: string,
   sections: string[],
-  baseUrl: string = 'https://gitforge.ai.studio'
+  baseUrl: string = 'https://gitforge.ai.studio',
+  theme: string = 'midnight'
 ): Promise<string> {
   const ai = getAIClient();
   if (!ai) {
-    return generateFallbackReadme(profile, style, sections, baseUrl);
+    return generateFallbackReadme(profile, style, sections, baseUrl, theme);
   }
 
   try {
     const prompt = `You are GitForge's AI Developer Agent. Generate an outstanding GitHub Profile README.md for user @${profile.username} (${profile.name || profile.username}).
 Style requested: ${style}
+Theme requested for SVG stats cards/widgets (use &theme=${theme} parameter): ${theme}
 Include sections: ${sections.join(', ')}
 
 User stats context:
@@ -42,7 +44,9 @@ User stats context:
 - Top Languages: ${profile.languages.map((l) => l.name).join(', ')}
 - Pinned repos: ${profile.pinnedRepos.map((r) => r.name + ': ' + r.description).join('; ')}
 
-Return strictly valid Markdown without wrapping in outer json keys. Make sure to use SVG badges from shields.io, stats widgets embeds from ${baseUrl}/api/card/*, tech stack badges, and formatted project showcases. Footer link should be [GitForge](${baseUrl}).`;
+Return strictly valid Markdown without wrapping in outer json keys. Make sure to use SVG badges from shields.io, stats widgets embeds from ${baseUrl}/api/card/* (always append ?username=${profile.username}&theme=${theme} to all card URLs), tech stack badges, and formatted project showcases. 
+Please write high-quality, beautifully structured developer markdown. Feature the metadata tag at the top: **Theme:** ${theme} · **Style:** ${style} · **Agent:** Full-Stack Engineer.
+Footer link should be [GitForge](${baseUrl}).`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.6-flash',
@@ -52,10 +56,10 @@ Return strictly valid Markdown without wrapping in outer json keys. Make sure to
     if (response.text) {
       return response.text;
     }
-    return generateFallbackReadme(profile, style, sections, baseUrl);
+    return generateFallbackReadme(profile, style, sections, baseUrl, theme);
   } catch (err) {
     console.warn('[GitForge AI] Gemini call failed, using deterministic fallback:', err);
-    return generateFallbackReadme(profile, style, sections, baseUrl);
+    return generateFallbackReadme(profile, style, sections, baseUrl, theme);
   }
 }
 
@@ -159,60 +163,212 @@ export function generateFallbackReadme(
   profile: GitHubProfile,
   style: string,
   sections: string[],
-  baseUrl: string = 'https://gitforge.ai.studio'
+  baseUrl: string = 'https://gitforge.ai.studio',
+  theme: string = 'midnight'
 ): string {
   const name = profile.name || profile.username;
   const topLangs = profile.languages.map((l) => l.name).join(', ');
 
-  let md = `# Hi there, I'm ${name} 👋\n\n`;
+  // Standard metadata tags inspired by the user's template
+  let md = `# ${name}\n\n`;
   md += `> ${profile.bio || 'Building open source projects and shipping software.'}\n\n`;
+  md += `**Theme:** ${theme.toUpperCase()} · **Style:** ${style} · **Agent:** Full-Stack Engineer\n\n`;
 
-  if (sections.includes('About')) {
-    md += `## 🚀 About Me\n\n`;
-    md += `- 🔭 Currently working on **${profile.pinnedRepos[0]?.name || 'Web & Systems Applications'}**\n`;
-    if (profile.company) md += `- 🏢 Working at **${profile.company}**\n`;
-    if (profile.location) md += `- 📍 Based in **${profile.location}**\n`;
-    md += `- 💬 Ask me about **${topLangs || 'TypeScript, React, Node.js'}**\n`;
-    if (profile.website) md += `- 🌐 Portfolio & Blog: [${profile.website}](${profile.website})\n`;
-    md += `\n`;
-  }
+  if (style === 'Recruiter-friendly') {
+    // Elegant recruiter-friendly layout with picture-perfect centering and header block
+    if (sections.includes('Header') || sections.includes('About')) {
+      md += `## 👤 Professional Profile\n`;
+      md += `> Tuned for recruiters looking to get in touch and evaluate proof of work.\n\n`;
+      md += `<p align="center">\n`;
+      md += `  <img src="${baseUrl}/api/card/profile?username=${profile.username}&theme=${theme}" alt="${profile.username} profile" />\n`;
+      md += `</p>\n\n`;
+      md += `Hi, I'm **${name}**. This README highlights my skills and projects using a beautiful visual telemetry card system. Let's build something exceptional!\n\n`;
+    }
 
-  if (sections.includes('Tech Stack')) {
-    md += `## 🛠 Tech Stack & Tools\n\n`;
-    md += `![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white) `;
-    md += `![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black) `;
-    md += `![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB) `;
-    md += `![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white) `;
-    md += `![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white) `;
-    md += `![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)\n\n`;
-  }
+    if (sections.includes('About')) {
+      md += `### 🏢 About Me\n\n`;
+      md += `- 🔭 Currently working on **${profile.pinnedRepos[0]?.name || 'Modern Scalable Applications'}**\n`;
+      if (profile.company) md += `- 🏢 Employed at **${profile.company}**\n`;
+      if (profile.location) md += `- 📍 Based out of **${profile.location}**\n`;
+      md += `- 💬 Let's discuss **${topLangs || 'TypeScript, React, Go, Systems Architecture'}**\n`;
+      if (profile.website) md += `- 🌐 Portfolio Site: [${profile.website}](${profile.website})\n`;
+      md += `\n`;
+    }
 
-  if (sections.includes('Featured Projects') && profile.pinnedRepos.length > 0) {
-    md += `## 🌟 Featured Projects\n\n`;
-    profile.pinnedRepos.forEach((repo) => {
-      md += `### [${repo.name}](${repo.url})\n`;
-      md += `${repo.description || 'Open source project.'}\n\n`;
-      md += `\`${repo.language || 'Code'}\` | ⭐ **${repo.stars}** | 🍴 **${repo.forks}**\n\n`;
-    });
-  }
+    if (sections.includes('Tech Stack')) {
+      md += `## 🛠 Core Competencies\n\n`;
+      md += `<p align="center">\n`;
+      md += `  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" /> \n`;
+      md += `  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" /> \n`;
+      md += `  <img src="https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white" /> \n`;
+      md += `  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" /> \n`;
+      md += `  <img src="https://img.shields.io/badge/TailwindCSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" />\n`;
+      md += `</p>\n\n`;
+    }
 
-  if (sections.includes('GitHub Stats')) {
-    md += `## 📊 GitHub Analytics & Cards\n\n`;
+    if (sections.includes('GitHub Stats')) {
+      md += `## 📊 Verified Platform Performance\n`;
+      md += `> Real-time GitHub engine telemetry.\n\n`;
+      md += `<p align="center">\n`;
+      md += `  <img src="${baseUrl}/api/card/stats?username=${profile.username}&theme=${theme}" alt="${profile.username}'s GitHub Stats" />\n`;
+      md += `  <img src="${baseUrl}/api/card/languages?username=${profile.username}&theme=${theme}" alt="${profile.username}'s Top Languages" />\n`;
+      md += `</p>\n\n`;
+    }
+
+    if (sections.includes('Contribution graph')) {
+      md += `### 🔥 Continuous Deployment Velocity\n\n`;
+      md += `<p align="center">\n`;
+      md += `  <img src="${baseUrl}/api/card/streak?username=${profile.username}&theme=${theme}" alt="${profile.username}'s Streak" />\n`;
+      md += `</p>\n\n`;
+    }
+
+    if (sections.includes('Featured Projects') && profile.pinnedRepos.length > 0) {
+      md += `## 🌟 Featured Engineering Works\n\n`;
+      profile.pinnedRepos.slice(0, 3).forEach((repo) => {
+        md += `### 📂 [${repo.name}](${repo.url})\n`;
+        md += `> ${repo.description || 'Production-grade software build.'}\n\n`;
+        md += `\`${repo.language || 'Code'}\` | ⭐ **${repo.stars}** stars | 🍴 **${repo.forks}** forks\n\n`;
+      });
+    }
+
+    if (sections.includes('Contact')) {
+      md += `## 📞 Get In Touch\n\n`;
+      md += `If you are looking for a reliable, growth-oriented engineer to join your engineering crew, reach out:\n\n`;
+      md += `<p align="center">\n`;
+      md += `  <a href="https://github.com/${profile.username}"><img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white" /></a>\n`;
+      if (profile.twitterUsername) {
+        md += `  <a href="https://twitter.com/${profile.twitterUsername}"><img src="https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white" /></a>\n`;
+      }
+      md += `</p>\n\n`;
+    }
+
+  } else if (style === 'Technical') {
+    // Highly technical detailed specifications & system specs layout
+    if (sections.includes('Header')) {
+      md += `### \`System Specifications: @${profile.username}\`\n`;
+      md += `\`\`\`bash\n`;
+      md += `Host: GitForge Core Engine v1.0.0\n`;
+      md += `User: ${profile.username}\n`;
+      md += `Repos: ${profile.publicRepos} | Stars: ${profile.starsCount}\n`;
+      md += `Base: ${profile.location || 'Localhost'}\n`;
+      md += `\`\`\`\n\n`;
+    }
+
+    if (sections.includes('About')) {
+      md += `## 🔌 Hardware & System Status\n\n`;
+      md += `- **Active Sub-System:** Working on \`${profile.pinnedRepos[0]?.name || 'main-microservice'}\`\n`;
+      md += `- **Tech Stack Stack:** \`${topLangs || 'TypeScript, ESM, Node, Docker'}\`\n`;
+      if (profile.company) md += `- **Firmware Instance:** @\`${profile.company}\`\n`;
+    }
+
+    if (sections.includes('GitHub Stats') || sections.includes('Languages')) {
+      md += `## 📊 Processor & Memory Telemetry\n\n`;
+      md += `<p align="center">\n`;
+      md += `  <img src="${baseUrl}/api/card/languages?username=${profile.username}&theme=${theme}" alt="Languages Telemetry" />\n`;
+      md += `  <img src="${baseUrl}/api/card/stats?username=${profile.username}&theme=${theme}" alt="Engine Stats" />\n`;
+      md += `</p>\n\n`;
+    }
+
+    if (sections.includes('Featured Projects') && profile.pinnedRepos.length > 0) {
+      md += `## 📦 Compiled Modules\n\n`;
+      profile.pinnedRepos.forEach((repo) => {
+        md += `### 🛠️ [\`${repo.name}\`](${repo.url})\n`;
+        md += `> ${repo.description || 'Sub-assembly repo.'}\n`;
+        md += `\`\`\`yaml\n`;
+        md += `runtime: ${repo.language || 'Native'}\n`;
+        md += `popularity: ⭐ ${repo.stars} | forks: ${repo.forks}\n`;
+        md += `\`\`\`\n\n`;
+      });
+    }
+
+  } else if (style === 'Minimal') {
+    // Sleek, text-heavy layout with minimal distractions
+    md += `Hi, I'm **${name}**. ${profile.bio || 'Software engineer and designer.'}\n\n`;
+
+    if (sections.includes('GitHub Stats')) {
+      md += `<p align="center">\n`;
+      md += `  <img src="${baseUrl}/api/card/stats?username=${profile.username}&theme=${theme}" alt="Stats Card" />\n`;
+      md += `</p>\n\n`;
+    }
+
+    if (sections.includes('About')) {
+      md += `### Focus\n`;
+      md += `Building high-performance web applications with a focus on code design and modular systems.\n\n`;
+    }
+
+  } else if (style === 'Creative') {
+    // Aesthetic, stylized layout with bold headers and center-aligned grid cards
     md += `<p align="center">\n`;
-    md += `  <img src="${baseUrl}/api/card/stats?username=${profile.username}&theme=midnight" alt="${profile.username}'s GitHub Stats" />\n`;
-    md += `  <img src="${baseUrl}/api/card/languages?username=${profile.username}&theme=midnight" alt="${profile.username}'s Top Languages" />\n`;
+    md += `  <img src="${baseUrl}/api/card/profile?username=${profile.username}&theme=${theme}" alt="Aesthetic Profile" />\n`;
     md += `</p>\n\n`;
-  }
 
-  if (sections.includes('Contribution graph')) {
-    md += `### 🔥 Commit Streak\n\n`;
-    md += `![${profile.username}'s Streak](${baseUrl}/api/card/streak?username=${profile.username}&theme=midnight)\n\n`;
-  }
+    md += `<h1 align="center">✨ ${name} ✨</h1>\n`;
+    md += `<p align="center"><em>${profile.bio || 'Weaving code into elegant interfaces and visual masterpieces.'}</em></p>\n\n`;
 
-  if (sections.includes('Contact')) {
-    md += `## 📫 Connect With Me\n\n`;
-    if (profile.twitterUsername) md += `-[![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com/${profile.twitterUsername})\n`;
-    md += `-[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/${profile.username})\n\n`;
+    if (sections.includes('Tech Stack')) {
+      md += `<h3 align="center">🔮 My Creative Toolkit</h3>\n`;
+      md += `<p align="center">\n`;
+      md += `  <img src="https://img.shields.io/badge/Figma-F24E1E?style=for-the-badge&logo=figma&logoColor=white" /> \n`;
+      md += `  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" /> \n`;
+      md += `  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" /> \n`;
+      md += `  <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white" /> \n`;
+      md += `</p>\n\n`;
+    }
+
+    if (sections.includes('GitHub Stats')) {
+      md += `<h3 align="center">🌈 Platform Vibes</h3>\n`;
+      md += `<p align="center">\n`;
+      md += `  <img src="${baseUrl}/api/card/stats?username=${profile.username}&theme=${theme}" alt="Stats Card" />\n`;
+      md += `  <img src="${baseUrl}/api/card/streak?username=${profile.username}&theme=${theme}" alt="Streak" />\n`;
+      md += `</p>\n\n`;
+    }
+
+  } else if (style === 'Open Source') {
+    // Focused on community contributions, issues, streaks, and sponsorships
+    md += `## 🌍 Open Source Advocate & Maintainer\n\n`;
+    md += `I spend my time building developer tooling, contributing to libraries, and publishing open-source components.\n\n`;
+
+    if (sections.includes('Contribution graph')) {
+      md += `### ⚡ Contribution Flow\n\n`;
+      md += `<p align="center">\n`;
+      md += `  <img src="${baseUrl}/api/card/streak?username=${profile.username}&theme=${theme}" alt="Streak" />\n`;
+      md += `</p>\n\n`;
+    }
+
+    if (sections.includes('GitHub Stats')) {
+      md += `### 📊 Open Source Metrics\n\n`;
+      md += `<p align="center">\n`;
+      md += `  <img src="${baseUrl}/api/card/stats?username=${profile.username}&theme=${theme}" alt="OS Stats" />\n`;
+      md += `</p>\n\n`;
+    }
+
+  } else {
+    // Standard default template
+    if (sections.includes('About')) {
+      md += `## 🚀 About Me\n\n`;
+      md += `- 🔭 Currently working on **${profile.pinnedRepos[0]?.name || 'Web & Systems Applications'}**\n`;
+      if (profile.company) md += `- 🏢 Working at **${profile.company}**\n`;
+      if (profile.location) md += `- 📍 Based in **${profile.location}**\n`;
+      md += `- 💬 Ask me about **${topLangs || 'TypeScript, React, Node.js'}**\n`;
+      if (profile.website) md += `- 🌐 Portfolio & Blog: [${profile.website}](${profile.website})\n`;
+      md += `\n`;
+    }
+
+    if (sections.includes('Tech Stack')) {
+      md += `## 🛠 Tech Stack & Tools\n\n`;
+      md += `![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white) `;
+      md += `![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB) `;
+      md += `![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white) `;
+      md += `![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)\n\n`;
+    }
+
+    if (sections.includes('GitHub Stats')) {
+      md += `## 📊 GitHub Analytics\n\n`;
+      md += `<p align="center">\n`;
+      md += `  <img src="${baseUrl}/api/card/stats?username=${profile.username}&theme=${theme}" alt="Stats" />\n`;
+      md += `  <img src="${baseUrl}/api/card/languages?username=${profile.username}&theme=${theme}" alt="Languages" />\n`;
+      md += `</p>\n\n`;
+    }
   }
 
   md += `---\n*Generated with ⚡ [GitForge](${baseUrl}) — The Developer Identity Platform*\n`;

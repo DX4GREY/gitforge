@@ -12,12 +12,13 @@ export async function getGitHubProfile(username: string): Promise<GitHubProfile>
 export async function generateAIReadmeApi(
   username: string,
   style: string,
-  sections: string[]
+  sections: string[],
+  theme: string = 'midnight'
 ): Promise<string> {
   const res = await fetch('/api/ai/readme', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, style, sections }),
+    body: JSON.stringify({ username, style, sections, theme }),
   });
   if (!res.ok) {
     throw new Error('Failed to generate AI README');

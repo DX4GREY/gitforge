@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Download, Sparkles, Check, RefreshCw, Eye, Code, FileText } from 'lucide-react';
+import { Copy, Download, Sparkles, Check, RefreshCw, Eye, Code, FileText, Palette } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { useTheme } from '../context/ThemeContext';
+import { ORIGINAL_THEMES } from '../lib/themes';
 import { getGitHubProfile, generateAIReadmeApi } from '../lib/github';
 import { GitHubProfile } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -16,7 +17,8 @@ export const ReadmeBuilderPage: React.FC<ReadmeBuilderPageProps> = () => {
   const { activeTheme } = useTheme();
   const { authState } = useAuth();
   const [username, setUsername] = useState(authState.user?.login || 'octocat');
-  const [style, setStyle] = useState('Technical');
+  const [style, setStyle] = useState('Recruiter-friendly');
+  const [readmeTheme, setReadmeTheme] = useState('midnight');
   const [selectedSections, setSelectedSections] = useState<string[]>([
     'Header',
     'About',
@@ -32,7 +34,7 @@ export const ReadmeBuilderPage: React.FC<ReadmeBuilderPageProps> = () => {
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const [copied, setCopied] = useState(false);
 
-  const styles = ['Minimal', 'Technical', 'Creative', 'Recruiter-friendly', 'Student', 'Open Source'];
+  const styles = ['Recruiter-friendly', 'Technical', 'Minimal', 'Creative', 'Open Source'];
   const availableSections = [
     'Header',
     'About',
@@ -50,7 +52,7 @@ export const ReadmeBuilderPage: React.FC<ReadmeBuilderPageProps> = () => {
     try {
       const userProfile = await getGitHubProfile(username);
       setProfile(userProfile);
-      const generatedMd = await generateAIReadmeApi(username, style, selectedSections);
+      const generatedMd = await generateAIReadmeApi(username, style, selectedSections, readmeTheme);
       setMarkdown(generatedMd);
     } catch {
       // Handled inside AI fallback
@@ -67,7 +69,7 @@ export const ReadmeBuilderPage: React.FC<ReadmeBuilderPageProps> = () => {
 
   useEffect(() => {
     handleGenerate();
-  }, [username]);
+  }, [username, style, readmeTheme]);
 
   const toggleSection = (sec: string) => {
     if (selectedSections.includes(sec)) {
@@ -149,7 +151,33 @@ export const ReadmeBuilderPage: React.FC<ReadmeBuilderPageProps> = () => {
           </div>
 
           <div className="p-5 rounded-xl border space-y-4" style={{ backgroundColor: activeTheme.surface, borderColor: activeTheme.border }}>
-            <h3 className="font-bold text-sm">3. Include Sections</h3>
+            <h3 className="font-bold text-sm flex items-center gap-1.5">
+              <Palette className="w-4 h-4 text-pink-500" />
+              3. Visual Card Theme
+            </h3>
+            <p className="text-[10px]" style={{ color: activeTheme.textMuted }}>
+              Sets the color palette of the generated stats, language, and streak cards.
+            </p>
+            <select
+              value={readmeTheme}
+              onChange={(e) => setReadmeTheme(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-lg text-xs font-semibold border outline-none cursor-pointer transition"
+              style={{
+                backgroundColor: activeTheme.surfaceSecondary,
+                borderColor: activeTheme.border,
+                color: activeTheme.text,
+              }}
+            >
+              {ORIGINAL_THEMES.map((themeOption) => (
+                <option key={themeOption.id} value={themeOption.id}>
+                  {themeOption.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="p-5 rounded-xl border space-y-4" style={{ backgroundColor: activeTheme.surface, borderColor: activeTheme.border }}>
+            <h3 className="font-bold text-sm">4. Include Sections</h3>
             <div className="space-y-2">
               {availableSections.map((sec) => {
                 const isSelected = selectedSections.includes(sec);
