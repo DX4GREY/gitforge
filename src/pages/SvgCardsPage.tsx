@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Code, Copy, Check, ExternalLink, Palette, RefreshCw } from 'lucide-react';
+import { Code, Copy, Check, ExternalLink, Palette, RefreshCw, Download, Info, Server, ShieldAlert } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -18,7 +18,8 @@ export const SvgCardsPage: React.FC = () => {
   const [cardAnimate, setCardAnimate] = useState('none');
   const [cardLayout, setCardLayout] = useState('classic');
   const [showGithubLogo, setShowGithubLogo] = useState(true);
-  const [copiedType, setCopiedType] = useState<'md' | 'html' | 'url' | null>(null);
+  const [copiedType, setCopiedType] = useState<'md' | 'html' | 'url' | 'raw' | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const cardTypes = [
     { id: 'profile', label: 'Profile Card' },
@@ -34,11 +35,43 @@ export const SvgCardsPage: React.FC = () => {
 
   const markdownEmbed = `![GitForge ${cardType}](${cardApiUrl})`;
   const htmlEmbed = `<img src="${cardApiUrl}" alt="GitForge ${cardType}" />`;
+  const relativeRepoPath = `![GitForge ${cardType}](./assets/${cardType}-${username}.svg)`;
 
-  const copyToClipboard = (text: string, type: 'md' | 'html' | 'url') => {
+  const copyToClipboard = (text: string, type: 'md' | 'html' | 'url' | 'raw') => {
     navigator.clipboard.writeText(text);
     setCopiedType(type);
     setTimeout(() => setCopiedType(null), 2000);
+  };
+
+  const downloadSvgFile = async () => {
+    try {
+      setIsDownloading(true);
+      const res = await fetch(cardApiUrl);
+      const svgText = await res.text();
+      const blob = new Blob([svgText], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gitforge-${cardType}-${username}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download SVG:', err);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const copyRawSvgCode = async () => {
+    try {
+      const res = await fetch(cardApiUrl);
+      const svgText = await res.text();
+      copyToClipboard(svgText, 'raw');
+    } catch (err) {
+      console.error('Failed to fetch raw SVG:', err);
+    }
   };
 
   return (
@@ -153,11 +186,61 @@ export const SvgCardsPage: React.FC = () => {
 
       {/* Card Preview Frame */}
       <div className="p-8 rounded-2xl border flex flex-col items-center justify-center space-y-6 shadow-xl" style={{ backgroundColor: activeTheme.surface, borderColor: activeTheme.border }}>
-        <div className="text-xs font-mono font-semibold" style={{ color: activeTheme.textMuted }}>
-          Live SVG Render
+        <div className="w-full flex items-center justify-between">
+          <div className="text-xs font-mono font-semibold" style={{ color: activeTheme.textMuted }}>
+            Live SVG Render
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={downloadSvgFile}
+              disabled={isDownloading}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition hover:opacity-90 shadow-sm text-white"
+              style={{ backgroundColor: activeTheme.primary }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              {isDownloading ? 'Downloading...' : 'Download SVG File'}
+            </button>
+            <button
+              onClick={copyRawSvgCode}
+              className="px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 transition hover:opacity-85 shadow-sm"
+              style={{ backgroundColor: activeTheme.surfaceSecondary, borderColor: activeTheme.border, color: activeTheme.text }}
+            >
+              {copiedType === 'raw' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Code className="w-3.5 h-3.5 text-cyan-400" />}
+              {copiedType === 'raw' ? 'SVG Code Copied!' : 'Copy Raw SVG Code'}
+            </button>
+          </div>
         </div>
+
         <div className="overflow-x-auto max-w-full p-4 rounded-xl bg-black/30 border border-gray-800">
           <img src={cardApiUrl} alt="SVG Card Preview" className="max-w-full h-auto" />
+        </div>
+
+        {/* Info Box about GitHub README Uptime & Dev Server Auto-Sleep */}
+        <div className="w-full p-4 rounded-xl border space-y-2" style={{ backgroundColor: 'rgba(34, 211, 238, 0.05)', borderColor: 'rgba(34, 211, 238, 0.2)' }}>
+          <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
+            <Info className="w-4 h-4" />
+            <span>How to keep your SVG active 24/7 on GitHub README</span>
+          </div>
+          <p className="text-[11px] leading-relaxed" style={{ color: activeTheme.textMuted }}>
+            Preview environments automatically enter sleep mode when no active visitors are present. To ensure your GitHub README always displays your card without interruption:
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-[11px]">
+            <div className="p-2.5 rounded-lg bg-black/30 border border-gray-800 space-y-1">
+              <span className="font-bold text-white block">Method 1: Static SVG Asset (100% Guaranteed Uptime)</span>
+              <p style={{ color: activeTheme.textMuted }}>
+                Download the <code className="text-cyan-300">.svg</code> file using the button above and commit it to your repository (e.g. <code className="text-cyan-300">assets/stats.svg</code>). Embed it with:
+              </p>
+              <code className="block p-1.5 rounded bg-black/50 font-mono text-[10px] text-cyan-400 select-all mt-1">
+                {relativeRepoPath}
+              </code>
+            </div>
+            <div className="p-2.5 rounded-lg bg-black/30 border border-gray-800 space-y-1">
+              <span className="font-bold text-white block">Method 2: Live Production Deployment</span>
+              <p style={{ color: activeTheme.textMuted }}>
+                Deploy this applet to production (Cloud Run / Vercel) via the <strong>Settings &gt; Deploy</strong> menu. Use your custom production domain for real-time dynamic updates.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Embed Codes */}
@@ -168,7 +251,7 @@ export const SvgCardsPage: React.FC = () => {
             {/* Markdown */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs font-mono" style={{ color: activeTheme.textMuted }}>
-                <span>Markdown Embed</span>
+                <span>Dynamic Live URL (Markdown Embed)</span>
                 <button
                   onClick={() => copyToClipboard(markdownEmbed, 'md')}
                   className="flex items-center gap-1 font-sans text-xs font-bold"
@@ -189,7 +272,7 @@ export const SvgCardsPage: React.FC = () => {
             {/* Direct URL */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs font-mono" style={{ color: activeTheme.textMuted }}>
-                <span>Direct Image URL</span>
+                <span>Direct Image API Endpoint</span>
                 <button
                   onClick={() => copyToClipboard(cardApiUrl, 'url')}
                   className="flex items-center gap-1 font-sans text-xs font-bold"
